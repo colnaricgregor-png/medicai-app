@@ -9,7 +9,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Nalaganje ključa preko nove uradne knjižnice
+# Nalaganje ključa preko nove uradne google-genai knjižnice
 if "GEMINI_API_KEY" in st.secrets:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     try:
@@ -167,7 +167,7 @@ STRIKTNA NAVODILA ZA STRUKTURO:
 - Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
 """
 
-# 4. NOVA GOOGLE-GENAI LOGIKA (Z večjimi limiti)
+# 4. NOVA URADNA GOOGLE-GENAI LOGIKA (Z večjimi limiti za testiranje)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
@@ -202,7 +202,7 @@ if analyze_button:
             """, unsafe_allow_html=True)
             
             cisti_tekst = response.text
-            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>Layout fixed</div>"
             
             znotraj_seznama = False
             
