@@ -150,13 +150,13 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. NEPREBOJNI DIREKTNI API KLIC preko standardnega HTTP protokola
+# 4. IZBOLJŠAN DIREKTNI API KLIC Z VARNOSTNIM UVODOM
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            # Priprava podatkov za direktni spletni zahtevek
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-            headers = {"Content-Type": "json"}
+            # POPRAVEK: Točna definicija JSON glave za Google strežnik
+            headers = {"Content-Type": "application/json"}
             
             contents_payload = []
             
@@ -177,18 +177,24 @@ if analyze_button:
                 st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
                 
-            # Celoten paket za Google strežnik
             payload = {
                 "contents": contents_payload,
                 "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
                 "generationConfig": {"temperature": 0.2}
             }
             
-            # Pošljemo direktno na Google
             response = requests.post(url, headers=headers, json=payload)
             response_json = response.json()
             
-            # Preberemo čisti tekst odgovora
+            # VARNOSTNI PREGLED ODGOVORA (Preprečuje sesutje 'candidates')
+            if 'error' in response_json:
+                st.error(f"Googlova napaka: {response_json['error'].get('message', 'Neznano obvestilo')}")
+                st.stop()
+                
+            if 'candidates' not in response_json or not response_json['candidates']:
+                st.error("Strežnik ni vrnil veljavnega odgovora. Prosimo, poskusite znova čez trenutek.")
+                st.stop()
+                
             ai_odgovor = response_json['candidates'][0]['content']['parts'][0]['text']
             
             st.markdown(f"<h2 style='color: {text_main}; font-weight:700; font-size: 1.5rem; margin-top:20px;'>📋 Poročilo analize</h2>", unsafe_allow_html=True)
@@ -199,7 +205,7 @@ if analyze_button:
             """, unsafe_allow_html=True)
             
             # Pretvorba v 100% varen HTML izpis s prisilno barvo
-            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>Layout fixed</div>"
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
             znotraj_seznama = False
             
             for line in ai_odgovor.split('\n'):
@@ -256,4 +262,4 @@ if analyze_button:
             st.markdown(html_rezultat, unsafe_allow_html=True)
             
         except Exception as e:
-            st.error(f"Prišlo je do napake: {e}")
+            st.error(f"Prišlo je do napake znotraj aplikacije: {e}")
