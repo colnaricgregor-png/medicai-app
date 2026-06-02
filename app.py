@@ -132,12 +132,12 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC Z MODELOM GEMINI-1.5-FLASH
+# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC (Stabilni v1 in gemini-1.5-flash z veliko kvoto!)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            # ZMAGA: Tukaj uporabljamo 1.5-flash z ogromno kvoto klicev!
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            # ZMAGA: Tukaj uporabljamo stabilno v1 pot in 1.5-flash!
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
             full_prompt = f"NAVODILA ZA UMETNO INTELIGENCO:\n{SYSTEM_PROMPT}\n\nVPRAŠANJE/ZAHTEVA UPORABNIKA:\n"
