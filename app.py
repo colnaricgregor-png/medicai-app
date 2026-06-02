@@ -150,12 +150,12 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. IZBOLJŠAN DIREKTNI API KLIC Z VARNOSTNIM UVODOM
+# 4. STABILNI V1 HTTP STRUKTURNI KLIC
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-            # POPRAVEK: Točna definicija JSON glave za Google strežnik
+            # POPRAVEK STOLETJA: Preklop iz v1beta na uradni stabilni /v1/ API protokol!
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
             contents_payload = []
@@ -186,13 +186,12 @@ if analyze_button:
             response = requests.post(url, headers=headers, json=payload)
             response_json = response.json()
             
-            # VARNOSTNI PREGLED ODGOVORA (Preprečuje sesutje 'candidates')
             if 'error' in response_json:
                 st.error(f"Googlova napaka: {response_json['error'].get('message', 'Neznano obvestilo')}")
                 st.stop()
                 
             if 'candidates' not in response_json or not response_json['candidates']:
-                st.error("Strežnik ni vrnil veljavnega odgovora. Prosimo, poskusite znova čez trenutek.")
+                st.error("Strežnik ni vrnil odgovora. Prosimo, poskusite znova.")
                 st.stop()
                 
             ai_odgovor = response_json['candidates'][0]['content']['parts'][0]['text']
@@ -204,7 +203,6 @@ if analyze_button:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Pretvorba v 100% varen HTML izpis s prisilno barvo
             html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
             znotraj_seznama = False
             
