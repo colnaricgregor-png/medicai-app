@@ -1,9 +1,8 @@
 import streamlit as st
 import requests
-import json
+import base64
 from PIL import Image
 import io
-import base64
 
 st.set_page_config(
     page_title="MedicAI",
@@ -132,12 +131,12 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC Z MODELOM GEMINI-1.5-FLASH
+# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC Z MODELOM GEMINI-2.5-FLASH
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            # Uporabljamo čisti gemini-1.5-flash na v1beta
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            # Tukaj je zmagovalni URL (2.5-flash, ki je prej dokazano obstajal!)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
             full_prompt = f"NAVODILA ZA UMETNO INTELIGENCO:\n{SYSTEM_PROMPT}\n\nVPRAŠANJE/ZAHTEVA UPORABNIKA:\n"
@@ -151,7 +150,7 @@ if analyze_button:
                 contents_payload = [
                     {
                         "parts": [
-                            {"inline_data": {"mime_type": uploaded_file.type, "data": base64_image}},
+                            {"inlineData": {"mimeType": uploaded_file.type, "data": base64_image}},
                             {"text": full_prompt}
                         ]
                     }
