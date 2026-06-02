@@ -9,6 +9,7 @@ st.set_page_config(
     layout="centered"
 )
 
+# Nalaganje ključa preko nove uradne knjižnice
 if "GEMINI_API_KEY" in st.secrets:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     try:
@@ -37,7 +38,7 @@ with col_theme:
         label_visibility="collapsed"
     )
 
-# Barvne palete za luksuzen kontrast
+# Strogo določene barvne palete za luksuzen kontrast
 if "🌙 Temen" in izbira_tema:
     bg_app = "#0f172a"
     bg_card = "#1e293b"
@@ -57,7 +58,7 @@ else:
     input_text = "#0f172a"
     btn_bg = "#111111"
     btn_text = "#ffffff"
-    txt_barva = "#000000"  # Popolnoma črn tekst za svetel način
+    txt_barva = "#000000"  # Absolutna črna za svetel način
 
 # 2. PREMIUM LUKSUZNI CSS
 st.markdown(f"""
@@ -71,6 +72,7 @@ st.markdown(f"""
     h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.4rem; letter-spacing: -0.03em; margin-bottom: 0.5rem; }}
     .subtitle {{ text-align: center; color: {text_muted} !important; font-size: 1.1rem; margin-bottom: 2.5rem; font-weight: 400; }}
     
+    /* Vnosno polje z luksuznim robom */
     div.stTextArea textarea {{
         color: {input_text} !important;
         background-color: {bg_card} !important;
@@ -79,6 +81,7 @@ st.markdown(f"""
         padding: 15px !important;
     }}
     
+    /* STRUKTURNO IN FIKSNO CENTRIRANJE GUMBA */
     .stButton>button {{
         background-color: {btn_bg} !important; 
         color: {btn_text} !important; 
@@ -100,6 +103,7 @@ st.markdown(f"""
     
     .stButton>button p {{ color: {btn_text} !important; font-weight: 600 !important; margin: 0 !important; }}
     
+    /* Premium disclaimer */
     .premium-disclaimer {{
         background-color: {bg_card}; 
         padding: 16px 20px; 
@@ -163,7 +167,7 @@ STRIKTNA NAVODILA ZA STRUKTURO:
 - Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
 """
 
-# 4. AI LOGIKA (Preklopljeno na visoko-prepustni gemini-1.5-flash)
+# 4. NOVA GOOGLE-GENAI LOGIKA (Z večjimi limiti)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
@@ -176,13 +180,13 @@ if analyze_button:
                 img_bytes = uploaded_file.read()
                 image_part = types.Part.from_bytes(data=img_bytes, mime_type=uploaded_file.type)
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',  # POPRAVEK: Večji limiti za testiranje!
+                    model='gemini-1.5-flash',
                     contents=[image_part, "Natančno preuči in laično razloži ta dokument."],
                     config=config
                 )
             elif "💬" in izbira_nacina and user_question:
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',  # POPRAVEK: Večji limiti za testiranje!
+                    model='gemini-1.5-flash',
                     contents=user_question,
                     config=config
                 )
@@ -198,7 +202,7 @@ if analyze_button:
             """, unsafe_allow_html=True)
             
             cisti_tekst = response.text
-            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>Layout fixed</div>"
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
             
             znotraj_seznama = False
             
