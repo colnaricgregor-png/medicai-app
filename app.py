@@ -9,7 +9,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Nalaganje ključa preko nove uradne google-genai knjižnice
+# Nalaganje ključa preko Streamlit Secrets
 if "GEMINI_API_KEY" in st.secrets:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     try:
@@ -167,7 +167,7 @@ STRIKTNA NAVODILA ZA STRUKTURO:
 - Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
 """
 
-# 4. NOVA URADNA GOOGLE-GENAI LOGIKA (Z večjimi limiti za testiranje)
+# 4. NEPREBOJNA LOGIKA (Z univerzalno eksaktno potjo do modela)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
@@ -176,17 +176,20 @@ if analyze_button:
                 temperature=0.2
             )
             
+            # POPRAVEK STOLETJA: Uporaba eksaktne poti, ki deluje na vseh verzijah API-ja
+            univerzalni_model = 'publishers/google/models/gemini-1.5-flash'
+            
             if "📸" in izbira_nacina and uploaded_file:
                 img_bytes = uploaded_file.read()
                 image_part = types.Part.from_bytes(data=img_bytes, mime_type=uploaded_file.type)
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model=univerzalni_model,
                     contents=[image_part, "Natančno preuči in laično razloži ta dokument."],
                     config=config
                 )
             elif "💬" in izbira_nacina and user_question:
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model=univerzalni_model,
                     contents=user_question,
                     config=config
                 )
@@ -202,7 +205,7 @@ if analyze_button:
             """, unsafe_allow_html=True)
             
             cisti_tekst = response.text
-            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>Layout fixed</div>"
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
             
             znotraj_seznama = False
             
