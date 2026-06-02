@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image
 
 st.set_page_config(
@@ -8,14 +9,19 @@ st.set_page_config(
     layout="centered"
 )
 
+# Nalaganje ključa preko nove uradne knjižnice
 if "GEMINI_API_KEY" in st.secrets:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=GEMINI_API_KEY)
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        st.error(f"Initialization error: {e}")
+        st.stop()
 else:
     st.error("Missing API Key in Streamlit Secrets!")
     st.stop()
 
-# 1. INTERAKTIVNA IZBIRA VMESNIKA IN JEZIKA (Vrnjen ročni nadzor)
+# 1. INTERAKTIVNA IZBIRA VMESNIKA IN JEZIKA
 col_lang, col_theme = st.columns([2, 1])
 
 with col_lang:
@@ -40,7 +46,6 @@ if "🌙 Temen" in izbira_tema:
     text_muted = "#94a3b8"
     border_color = "#334155"
     input_text = "#ffffff"
-    # Popolnoma fiksen kontrast za gumb v temnem načinu (Bel gumb s črnim tekstom)
     btn_bg = "#ffffff"
     btn_text = "#0f172a"
     txt_barva = "#ffffff"
@@ -51,12 +56,11 @@ else:
     text_muted = "#64748b"
     border_color = "#e2e8f0"
     input_text = "#0f172a"
-    # Popolnoma fiksen kontrast za gumb v svetlem načinu (Črn gumb z belim tekstom)
     btn_bg = "#111111"
     btn_text = "#ffffff"
-    txt_barva = "#000000"
+    txt_barva = "#000000"  # Absolutna črna za svetel način
 
-# 2. PREMIUM LUKSUZNI CSS (Z mehkimi sencami in steklenim odsevom)
+# 2. PREMIUM LUKSUZNI CSS
 st.markdown(f"""
     <style>
     .stApp {{ 
@@ -78,7 +82,7 @@ st.markdown(f"""
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
     }}
     
-    /* STRUKTURNO IN FIKSNO CENTRIRANJE GUMBA (Z zanesljivimi barvami) */
+    /* STRUKTURNO IN FIKSNO CENTRIRANJE GUMBA */
     .stButton>button {{
         background-color: {btn_bg} !important; 
         color: {btn_text} !important; 
@@ -92,7 +96,6 @@ st.markdown(f"""
         transition: all 0.25s ease !important;
     }}
     
-    /* Efekt, ko se z miško zapelješ čez gumb (Micro-interaction) */
     .stButton>button:hover {{
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
@@ -101,7 +104,7 @@ st.markdown(f"""
     
     .stButton>button p {{ color: {btn_text} !important; font-weight: 600 !important; margin: 0 !important; }}
     
-    /* Steklen disclaimer */
+    /* Premium disclaimer */
     .premium-disclaimer {{
         background-color: {bg_card}; 
         padding: 16px 20px; 
@@ -111,7 +114,6 @@ st.markdown(f"""
         font-size: 0.85rem; 
         margin-bottom: 25px; 
         line-height: 1.5;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
     }}
     
     [data-testid="stSidebar"] {{ display: none !important; }}
@@ -133,19 +135,17 @@ user_question = ""
 if "📸" in izbira_nacina:
     uploaded_file = st.file_uploader("Naložite sliko", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
     if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Dokument uspešno naložen", use_container_width=True)
+        st.image(Image.open(uploaded_file), caption="Dokument uspešno naložen", use_container_width=True)
 else:
     user_question = st.text_area("Vnesite tekst", placeholder="Sem prilepite besedilo izvida ali vpisite zdravstveno težavo (npr. Kaj je angina pektoris?)...", height=160, label_visibility="collapsed")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Popolna poravnava gumba na sredino prek kolon
 col_left, col_btn, col_right = st.columns([1, 2, 1])
 with col_btn:
     analyze_button = st.button("Analiziraj in razloži")
 
-# Določitev jezika za AI
+# Določitev jezika za AI prompt
 if "Slovenščina" in jezik_razlage:
     target_lang = "Slovenian"
 elif "Deutsch" in jezik_razlage:
@@ -169,21 +169,30 @@ STRIKTNA NAVODILA ZA STRUKTURO:
 - Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
 """
 
-# 4. NEPREBOJNI STRUKTURNI IZPIS Z ROČNO DODELJENIMI BARVAMI
+# 4. AI LOGIKA (Uradna google-genai različica)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
-                system_instruction=SYSTEM_PROMPT
+            config = types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                temperature=0.2
             )
             
             if "📸" in izbira_nacina and uploaded_file:
+                # Nalaganje slike za nov SDK
                 img_bytes = uploaded_file.read()
-                image_parts = [{"mime_type": uploaded_file.type, "data": img_bytes}]
-                response = model.generate_content([image_parts[0], "Natančno preuči in laično razloži ta dokument."])
+                image_part = types.Part.from_bytes(data=img_bytes, mime_type=uploaded_file.type)
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=[image_part, "Natančno preuči in laično razloži ta dokument."],
+                    config=config
+                )
             elif "💬" in izbira_nacina and user_question:
-                response = model.generate_content(user_question)
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=user_question,
+                    config=config
+                )
             else:
                 st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
@@ -195,7 +204,7 @@ if analyze_button:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Pretvorba v absolutno varen HTML izpis s prisilno barvo
+            # Pretvorba v absolutno varen HTML izpis s prisilno barvo (100% črna v svetlem načinu)
             cisti_tekst = response.text
             html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
             
@@ -217,7 +226,7 @@ if analyze_button:
                     naslov_tekst = vrstica.replace("POGLAVJE:", "").strip()
                     html_rezultat += f"<p style='color: {txt_barva} !important; font-weight: 700 !important; font-size: 1.35rem !important; margin-top: 1.8rem !important; margin-bottom: 0.6rem !important; font-family: -apple-system, sans-serif;'>{naslov_tekst}</p>"
                     
-                # Morebitni naslovi vprašanj (Kaj je angina pektoris?)
+                # Naslovi vprašanj
                 elif vrstica.endswith('?') and len(vrstica) < 80:
                     if znotraj_seznama:
                         html_rezultat += "</ul>"
