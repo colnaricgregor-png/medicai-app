@@ -17,44 +17,23 @@ else:
     st.error("Missing API Key in Streamlit Secrets!")
     st.stop()
 
-# 1. INTERAKTIVNA IZBIRA VMESNIKA IN JEZIKA
-col_lang, col_theme = st.columns([2, 1])
+# 1. INTERAKTIVNA IZBIRA JEZIKA (Brez izbire teme - zacementiran Dark Mode)
+jezik_razlage = st.selectbox(
+    "Jezik razlage",
+    ["Preprosta Slovenščina (Prevod izvidov)", "Simple English", "Einfaches Deutsch"],
+    label_visibility="collapsed"
+)
 
-with col_lang:
-    jezik_razlage = st.selectbox(
-        "Jezik razlage",
-        ["Preprosta Slovenščina (Prevod izvidov)", "Simple English", "Einfaches Deutsch"],
-        label_visibility="collapsed"
-    )
-
-with col_theme:
-    izbira_tema = st.selectbox(
-        "Način vmesnika",
-        ["☀️ Svetel način", "🌙 Temen način"],
-        label_visibility="collapsed"
-    )
-
-# Barvne palete za luksuzen kontrast
-if "🌙 Temen" in izbira_tema:
-    bg_app = "#0f172a"
-    bg_card = "#1e293b"
-    text_main = "#f8fafc"
-    text_muted = "#94a3b8"
-    border_color = "#334155"
-    input_text = "#ffffff"
-    btn_bg = "#ffffff"
-    btn_text = "#0f172a"
-    txt_barva = "#ffffff"
-else:
-    bg_app = "#ffffff"
-    bg_card = "#f8fafc"
-    text_main = "#0f172a"
-    text_muted = "#64748b"
-    border_color = "#e2e8f0"
-    input_text = "#0f172a"
-    btn_bg = "#111111"
-    btn_text = "#ffffff"
-    txt_barva = "#000000"
+# Fiksna paleta za luksuzen Temen način (Premium Dark Mode)
+bg_app = "#0f172a"
+bg_card = "#1e293b"
+text_main = "#f8fafc"
+text_muted = "#94a3b8"
+border_color = "#334155"
+input_text = "#ffffff"
+btn_bg = "#ffffff"
+btn_text = "#0f172a"
+txt_barva = "#ffffff"
 
 # 2. PREMIUM LUKSUZNI CSS
 st.markdown(f"""
@@ -135,7 +114,6 @@ Za alineje uporabljaj standardni znak minus (-).
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            # Tukaj je zmagovalni URL (2.5-flash, ki je prej dokazano obstajal!)
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
