@@ -150,40 +150,39 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. STABILNI V1 HTTP KLIC S SYSTEM ROLE LOGIKO
+# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC (v1beta z bypass logiko)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            # Uporabimo v1beta, ki zanesljivo ima 1.5-flash model
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
-            # POPRAVEK STOLETJA: Navodila pošljemo kot "system" vlogo direktno znotraj seznama contents
-            contents_payload = [
-                {
-                    "role": "user",
-                    "parts": [{"text": f"Sistemska navodila: {SYSTEM_PROMPT}"}]
-                }
-            ]
+            # ZDRUŽITEV NAVODIL: Sistemski prompt preprosto prilepimo na začetek vprašanja
+            full_prompt = f"NAVODILA ZA UMETNO INTELIGENCO:\n{SYSTEM_PROMPT}\n\nVPRAŠANJE/ZAHTEVA UPORABNIKA:\n"
+            
+            contents_payload = []
             
             if "📸" in izbira_nacina and uploaded_file:
                 img_bytes = uploaded_file.read()
                 base64_image = base64.b64encode(img_bytes).decode('utf-8')
-                contents_payload.append({
-                    "role": "user",
-                    "parts": [
-                        {"inline_data": {"mime_type": uploaded_file.type, "data": base64_image}},
-                        {"text": "Natančno preuči in laično razloži ta dokument."}
-                    ]
-                })
+                full_prompt += "Natančno preuči to sliko in jo laično razloži."
+                contents_payload = [
+                    {
+                        "parts": [
+                            {"inline_data": {"mime_type": uploaded_file.type, "data": base64_image}},
+                            {"text": full_prompt}
+                        ]
+                    }
+                ]
             elif "💬" in izbira_nacina and user_question:
-                contents_payload.append({
-                    "role": "user",
-                    "parts": [{"text": user_question}]
-                })
+                full_prompt += user_question
+                contents_payload = [{"parts": [{"text": full_prompt}]}]
             else:
                 st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
                 
+            # Payload zdaj nima več kompliciranega systemInstruction polja, samo surovi tekst!
             payload = {
                 "contents": contents_payload,
                 "generationConfig": {"temperature": 0.2}
