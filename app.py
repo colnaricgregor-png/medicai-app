@@ -9,7 +9,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# Nalaganje ključa preko nove uradne knjižnice
 if "GEMINI_API_KEY" in st.secrets:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     try:
@@ -38,7 +37,7 @@ with col_theme:
         label_visibility="collapsed"
     )
 
-# Strogo določene barvne palete za luksuzen kontrast
+# Barvne palete za luksuzen kontrast
 if "🌙 Temen" in izbira_tema:
     bg_app = "#0f172a"
     bg_card = "#1e293b"
@@ -58,7 +57,7 @@ else:
     input_text = "#0f172a"
     btn_bg = "#111111"
     btn_text = "#ffffff"
-    txt_barva = "#000000"  # Absolutna črna za svetel način
+    txt_barva = "#000000"  # Popolnoma črn tekst za svetel način
 
 # 2. PREMIUM LUKSUZNI CSS
 st.markdown(f"""
@@ -72,17 +71,14 @@ st.markdown(f"""
     h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.4rem; letter-spacing: -0.03em; margin-bottom: 0.5rem; }}
     .subtitle {{ text-align: center; color: {text_muted} !important; font-size: 1.1rem; margin-bottom: 2.5rem; font-weight: 400; }}
     
-    /* Vnosno polje z luksuznim robom */
     div.stTextArea textarea {{
         color: {input_text} !important;
         background-color: {bg_card} !important;
         border: 1px solid {border_color} !important;
         border-radius: 14px !important;
         padding: 15px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
     }}
     
-    /* STRUKTURNO IN FIKSNO CENTRIRANJE GUMBA */
     .stButton>button {{
         background-color: {btn_bg} !important; 
         color: {btn_text} !important; 
@@ -104,7 +100,6 @@ st.markdown(f"""
     
     .stButton>button p {{ color: {btn_text} !important; font-weight: 600 !important; margin: 0 !important; }}
     
-    /* Premium disclaimer */
     .premium-disclaimer {{
         background-color: {bg_card}; 
         padding: 16px 20px; 
@@ -145,7 +140,6 @@ col_left, col_btn, col_right = st.columns([1, 2, 1])
 with col_btn:
     analyze_button = st.button("Analiziraj in razloži")
 
-# Določitev jezika za AI prompt
 if "Slovenščina" in jezik_razlage:
     target_lang = "Slovenian"
 elif "Deutsch" in jezik_razlage:
@@ -169,7 +163,7 @@ STRIKTNA NAVODILA ZA STRUKTURO:
 - Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
 """
 
-# 4. AI LOGIKA (Uradna google-genai različica)
+# 4. AI LOGIKA (Preklopljeno na visoko-prepustni gemini-1.5-flash)
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
@@ -179,17 +173,16 @@ if analyze_button:
             )
             
             if "📸" in izbira_nacina and uploaded_file:
-                # Nalaganje slike za nov SDK
                 img_bytes = uploaded_file.read()
                 image_part = types.Part.from_bytes(data=img_bytes, mime_type=uploaded_file.type)
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-1.5-flash',  # POPRAVEK: Večji limiti za testiranje!
                     contents=[image_part, "Natančno preuči in laično razloži ta dokument."],
                     config=config
                 )
             elif "💬" in izbira_nacina and user_question:
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-1.5-flash',  # POPRAVEK: Večji limiti za testiranje!
                     contents=user_question,
                     config=config
                 )
@@ -204,9 +197,8 @@ if analyze_button:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Pretvorba v absolutno varen HTML izpis s prisilno barvo (100% črna v svetlem načinu)
             cisti_tekst = response.text
-            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>Layout fixed</div>"
             
             znotraj_seznama = False
             
@@ -218,7 +210,6 @@ if analyze_button:
                         znotraj_seznama = False
                     continue
                 
-                # Naslovi poglavij
                 if "POGLAVJE:" in vrstica:
                     if znotraj_seznama:
                         html_rezultat += "</ul>"
@@ -226,14 +217,12 @@ if analyze_button:
                     naslov_tekst = vrstica.replace("POGLAVJE:", "").strip()
                     html_rezultat += f"<p style='color: {txt_barva} !important; font-weight: 700 !important; font-size: 1.35rem !important; margin-top: 1.8rem !important; margin-bottom: 0.6rem !important; font-family: -apple-system, sans-serif;'>{naslov_tekst}</p>"
                     
-                # Naslovi vprašanj
                 elif vrstica.endswith('?') and len(vrstica) < 80:
                     if znotraj_seznama:
                         html_rezultat += "</ul>"
                         znotraj_seznama = False
                     html_rezultat += f"<p style='color: {txt_barva} !important; font-weight: 700 !important; font-size: 1.25rem !important; margin-top: 1.5rem !important; margin-bottom: 0.5rem !important; font-family: -apple-system, sans-serif;'>{vrstica}</p>"
                     
-                # Alineje
                 elif vrstica.startswith("-") or vrstica.startswith("*"):
                     if not znotraj_seznama:
                         html_rezultat += f"<ul style='padding-left: 20px !important; margin-top: 0 !important; margin-bottom: 1rem !important; color: {txt_barva} !important;'>"
@@ -248,7 +237,6 @@ if analyze_button:
                         
                     html_rezultat += f"<li style='color: {txt_barva} !important; font-size: 1.05rem !important; margin-bottom: 0.5rem !important; font-family: -apple-system, sans-serif;'>{item_tekst}</li>"
                     
-                # Odstavki
                 else:
                     if znotraj_seznama:
                         html_rezultat += "</ul>"
