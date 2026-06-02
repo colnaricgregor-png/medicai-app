@@ -1,7 +1,9 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+import requests
+import json
 from PIL import Image
+import io
+import base64
 
 st.set_page_config(
     page_title="MedicAI",
@@ -9,14 +11,9 @@ st.set_page_config(
     layout="centered"
 )
 
-# Nalaganje ključa preko Streamlit Secrets
+# Prevzem varnostnega ključa
 if "GEMINI_API_KEY" in st.secrets:
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        st.error(f"Initialization error: {e}")
-        st.stop()
+    API_KEY = st.secrets["GEMINI_API_KEY"]
 else:
     st.error("Missing API Key in Streamlit Secrets!")
     st.stop()
@@ -38,7 +35,7 @@ with col_theme:
         label_visibility="collapsed"
     )
 
-# Strogo določene barvne palete za luksuzen kontrast
+# Barvne palete za luksuzen kontrast
 if "🌙 Temen" in izbira_tema:
     bg_app = "#0f172a"
     bg_card = "#1e293b"
@@ -72,7 +69,6 @@ st.markdown(f"""
     h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.4rem; letter-spacing: -0.03em; margin-bottom: 0.5rem; }}
     .subtitle {{ text-align: center; color: {text_muted} !important; font-size: 1.1rem; margin-bottom: 2.5rem; font-weight: 400; }}
     
-    /* Vnosno polje z luksuznim robom */
     div.stTextArea textarea {{
         color: {input_text} !important;
         background-color: {bg_card} !important;
@@ -81,7 +77,6 @@ st.markdown(f"""
         padding: 15px !important;
     }}
     
-    /* STRUKTURNO IN FIKSNO CENTRIRANJE GUMBA */
     .stButton>button {{
         background-color: {btn_bg} !important; 
         color: {btn_text} !important; 
@@ -94,25 +89,15 @@ st.markdown(f"""
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
         transition: all 0.25s ease !important;
     }}
-    
     .stButton>button:hover {{
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
-        opacity: 0.95 !important;
     }}
-    
     .stButton>button p {{ color: {btn_text} !important; font-weight: 600 !important; margin: 0 !important; }}
     
-    /* Premium disclaimer */
     .premium-disclaimer {{
-        background-color: {bg_card}; 
-        padding: 16px 20px; 
-        border-radius: 14px; 
-        border: 1px solid {border_color}; 
-        color: {text_muted}; 
-        font-size: 0.85rem; 
-        margin-bottom: 25px; 
-        line-height: 1.5;
+        background-color: {bg_card}; padding: 16px 20px; border-radius: 14px; 
+        border: 1px solid {border_color}; color: {text_muted}; font-size: 0.85rem; margin-bottom: 25px; line-height: 1.5;
     }}
     
     [data-testid="stSidebar"] {{ display: none !important; }}
@@ -154,49 +139,58 @@ else:
 SYSTEM_PROMPT = f"""
 Si vrhunski, sočuten medicinski asistent. 
 Tvoja naloga je, da pacientu (laiku) prevedeš medicinski izvid ali odgovoriš na zdravstveno vprašanje. Vse natančno RAZLOŽI V JEZIKU: {target_lang}.
-
-STRIKTNA NAVODILA ZA STRUKTURO:
-- NIKOLI ne postavljaj diagnoze in ne predpisuj zdravljenja.
-- Ne uporabljaj nobenih uvodnih fraz. Začni neposredno z vsebino.
-- PREPOVEDANO: Nikoli ne uporabljaj lojtric (#, ##, ###) na začetku vrstic za naslove.
-- Odgovor razdeli v naslednja poglavja z VELIKIMI ČRKAMI:
-  POGLAVJE: KRATEK POVZETEK
-  POGLAVJE: STABILNE VREDNOSTI
-  POGLAVJE: POMEMBNA ODSTOPANJA IN IZRAZI
-  POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
-- Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
+NIKOLI ne postavljaj diagnoze in ne predpisuj zdravljenja.
+Ne uporabljaj nobenih uvodnih fraz. Začni neposredno z vsebino.
+PREPOVEDANO: Nikoli ne uporabljaj lojtric (#) na začetku vrstic.
+Odgovor razdeli v naslednja poglavja z VELIKIMI ČRKAMI:
+POGLAVJE: KRATEK POVZETEK
+POGLAVJE: STABILNE VREDNOSTI
+POGLAVJE: POMEMBNA ODSTOPANJA IN IZRAZI
+POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
+Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. NEPREBOJNA LOGIKA (Z univerzalno eksaktno potjo do modela)
+# 4. NEPREBOJNI DIREKTNI API KLIC preko standardnega HTTP protokola
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            config = types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=0.2
-            )
+            # Priprava podatkov za direktni spletni zahtevek
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            headers = {"Content-Type": "json"}
             
-            # POPRAVEK STOLETJA: Uporaba eksaktne poti, ki deluje na vseh verzijah API-ja
-            univerzalni_model = 'publishers/google/models/gemini-1.5-flash'
+            contents_payload = []
             
             if "📸" in izbira_nacina and uploaded_file:
                 img_bytes = uploaded_file.read()
-                image_part = types.Part.from_bytes(data=img_bytes, mime_type=uploaded_file.type)
-                response = client.models.generate_content(
-                    model=univerzalni_model,
-                    contents=[image_part, "Natančno preuči in laično razloži ta dokument."],
-                    config=config
-                )
+                base64_image = base64.b64encode(img_bytes).decode('utf-8')
+                contents_payload = [
+                    {
+                        "parts": [
+                            {"inline_data": {"mime_type": uploaded_file.type, "data": base64_image}},
+                            {"text": "Natančno preuči in laično razloži ta dokument."}
+                        ]
+                    }
+                ]
             elif "💬" in izbira_nacina and user_question:
-                response = client.models.generate_content(
-                    model=univerzalni_model,
-                    contents=user_question,
-                    config=config
-                )
+                contents_payload = [{"parts": [{"text": user_question}]}]
             else:
                 st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
                 
+            # Celoten paket za Google strežnik
+            payload = {
+                "contents": contents_payload,
+                "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                "generationConfig": {"temperature": 0.2}
+            }
+            
+            # Pošljemo direktno na Google
+            response = requests.post(url, headers=headers, json=payload)
+            response_json = response.json()
+            
+            # Preberemo čisti tekst odgovora
+            ai_odgovor = response_json['candidates'][0]['content']['parts'][0]['text']
+            
             st.markdown(f"<h2 style='color: {text_main}; font-weight:700; font-size: 1.5rem; margin-top:20px;'>📋 Poročilo analize</h2>", unsafe_allow_html=True)
             st.markdown(f"""
                 <div class='premium-disclaimer'>
@@ -204,12 +198,11 @@ if analyze_button:
                 </div>
             """, unsafe_allow_html=True)
             
-            cisti_tekst = response.text
-            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
-            
+            # Pretvorba v 100% varen HTML izpis s prisilno barvo
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>Layout fixed</div>"
             znotraj_seznama = False
             
-            for line in cisti_tekst.split('\n'):
+            for line in ai_odgovor.split('\n'):
                 vrstica = line.replace('#', '').strip()
                 if not vrstica:
                     if znotraj_seznama:
