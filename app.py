@@ -150,11 +150,10 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. STABILNI V1 HTTP STRUKTURNI KLIC
+# 4. NEPREBOJNI V1 HTTP STRUKTURNI KLIC
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            # POPRAVEK STOLETJA: Preklop iz v1beta na uradni stabilni /v1/ API protokol!
             url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
@@ -179,7 +178,8 @@ if analyze_button:
                 
             payload = {
                 "contents": contents_payload,
-                "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                # POPRAVEK: Zamenjano v uradno ime polja s podčrtajem (system_instruction)
+                "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
                 "generationConfig": {"temperature": 0.2}
             }
             
