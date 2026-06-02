@@ -2,93 +2,150 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-st.set_page_config(page_title="MedicAI", page_icon="🩺", layout="centered")
+st.set_page_config(
+    page_title="MedicAI",
+    page_icon="🩺",
+    layout="centered"
+)
 
 if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
 else:
     st.error("Missing API Key in Streamlit Secrets!")
     st.stop()
 
-# 1. PREMIUM NATIVE CSS (Popolna prilagoditev sistemski temi uporabnika)
-st.markdown("""
+# 1. INTERAKTIVNA IZBIRA VMESNIKA IN JEZIKA (Vrnjen ročni nadzor)
+col_lang, col_theme = st.columns([2, 1])
+
+with col_lang:
+    jezik_razlage = st.selectbox(
+        "Jezik razlage",
+        ["Preprosta Slovenščina (Prevod izvidov)", "Simple English", "Einfaches Deutsch"],
+        label_visibility="collapsed"
+    )
+
+with col_theme:
+    izbira_tema = st.selectbox(
+        "Način vmesnika",
+        ["☀️ Svetel način", "🌙 Temen način"],
+        label_visibility="collapsed"
+    )
+
+# Strogo določene barvne palete za luksuzen kontrast
+if "🌙 Temen" in izbira_tema:
+    bg_app = "#0f172a"
+    bg_card = "#1e293b"
+    text_main = "#f8fafc"
+    text_muted = "#94a3b8"
+    border_color = "#334155"
+    input_text = "#ffffff"
+    # Popolnoma fiksen kontrast za gumb v temnem načinu (Bel gumb s črnim tekstom)
+    btn_bg = "#ffffff"
+    btn_text = "#0f172a"
+    txt_barva = "#ffffff"
+else:
+    bg_app = "#ffffff"
+    bg_card = "#f8fafc"
+    text_main = "#0f172a"
+    text_muted = "#64748b"
+    border_color = "#e2e8f0"
+    input_text = "#0f172a"
+    # Popolnoma fiksen kontrast za gumb v svetlem načinu (Črn gumb z belim tekstom)
+    btn_bg = "#111111"
+    btn_text = "#ffffff"
+    txt_barva = "#000000"
+
+# 2. PREMIUM LUKSUZNI CSS (Z mehkimi sencami in steklenim odsevom)
+st.markdown(f"""
     <style>
-    .block-container { max-width: 600px !important; padding-top: 3rem !important; }
+    .stApp {{ 
+        background-color: {bg_app} !important; 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    }}
+    .block-container {{ max-width: 600px !important; padding-top: 2rem !important; }}
     
-    h1 { text-align: center; font-weight: 800; font-size: 2.4rem; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
-    .subtitle { text-align: center; opacity: 0.7; font-size: 1.1rem; margin-bottom: 2.5rem; font-weight: 400; }
+    h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.4rem; letter-spacing: -0.03em; margin-bottom: 0.5rem; }}
+    .subtitle {{ text-align: center; color: {text_muted} !important; font-size: 1.1rem; margin-bottom: 2.5rem; font-weight: 400; }}
     
-    div.stTextArea textarea { border-radius: 12px !important; }
+    /* Vnosno polje z luksuznim robom */
+    div.stTextArea textarea {{
+        color: {input_text} !important;
+        background-color: {bg_card} !important;
+        border: 1px solid {border_color} !important;
+        border-radius: 14px !important;
+        padding: 15px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+    }}
     
-    /* Premium gumb, ki dinamično spreminja kontrast glede na svetel/temen način */
-    .stButton>button {
-        background-color: var(--text-color) !important;
-        color: var(--background-color) !important;
+    /* STRUKTURNO IN FIKSNO CENTRIRANJE GUMBA (Z zanesljivimi barvami) */
+    .stButton>button {{
+        background-color: {btn_bg} !important; 
+        color: {btn_text} !important; 
         width: 100% !important; 
-        border-radius: 12px !important; 
+        border-radius: 14px !important; 
         padding: 14px 24px !important; 
         font-weight: 600 !important; 
         font-size: 1.05rem !important;
         border: none !important; 
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transition: all 0.2s ease;
-    }
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.25s ease !important;
+    }}
     
-    /* Pametno opozorilo z mehkimi robovi */
-    .premium-disclaimer {
-        background-color: var(--secondary-background-color); 
+    /* Efekt, ko se z miško zapelješ čez gumb (Micro-interaction) */
+    .stButton>button:hover {{
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+        opacity: 0.95 !important;
+    }}
+    
+    .stButton>button p {{ color: {btn_text} !important; font-weight: 600 !important; margin: 0 !important; }}
+    
+    /* Steklen disclaimer */
+    .premium-disclaimer {{
+        background-color: {bg_card}; 
         padding: 16px 20px; 
         border-radius: 14px; 
-        font-size: 0.9rem; 
+        border: 1px solid {border_color}; 
+        color: {text_muted}; 
+        font-size: 0.85rem; 
         margin-bottom: 25px; 
-        border-left: 4px solid var(--text-color);
-        opacity: 0.9;
-    }
+        line-height: 1.5;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+    }}
     
-    /* Zagotovitev, da Streamlitov Markdown ne bo posilil barv v sivo ali belo */
-    [data-testid="stMarkdownContainer"] p, 
-    [data-testid="stMarkdownContainer"] li,
-    [data-testid="stMarkdownContainer"] h1,
-    [data-testid="stMarkdownContainer"] h2,
-    [data-testid="stMarkdownContainer"] h3 {
-        color: var(--text-color) !important;
-    }
-    
-    [data-testid="stSidebar"], [data-testid="stHeader"] { display: none !important; }
-    footer { visibility: hidden; }
+    [data-testid="stSidebar"] {{ display: none !important; }}
+    [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
+    [data-testid="stHeader"] {{ display: none !important; }}
+    footer {{ visibility: hidden; }}
     </style>
 """, unsafe_allow_html=True)
 
-# 2. STRUKTURA GLOBALNEGA VMESNIKA
+# 3. STRUKTURA VMESNIKA
 st.markdown("<h1>MedicAI</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Your global medical interpreter. Fast, simple, and jargon-free.</p>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Vaš osebni zdravstveni tolmač. Hitro, preprosto in v laičnem jeziku.</p>", unsafe_allow_html=True)
 
-# Izbira jezika za razlago (Globalna osnova z možnostjo preklopa)
-jezik_razlage = st.selectbox(
-    "Output Language / Jezik razlage", 
-    ["Preprosta Slovenščina (Prevod izvidov)", "Simple English", "Einfaches Deutsch"], 
-    label_visibility="visible"
-)
-
-izbira_nacina = st.radio("Input Method", ["📸 Image / Camera", "💬 Text / Question"], horizontal=True, label_visibility="collapsed")
+izbira_nacina = st.radio("Način vnosa", ["📸 Slika / Kamera", "💬 Kopiranje teksta / Vprašanje"], horizontal=True, label_visibility="collapsed")
 
 uploaded_file = None
 user_question = ""
 
 if "📸" in izbira_nacina:
-    uploaded_file = st.file_uploader("Upload report", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Naložite sliko", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
     if uploaded_file:
-        st.image(Image.open(uploaded_file), caption="Document uploaded successfully", use_container_width=True)
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Dokument uspešno naložen", use_container_width=True)
 else:
-    user_question = st.text_area("Enter text", placeholder="Paste report text or type a question (e.g., Kaj je angina pektoris?)...", height=160, label_visibility="collapsed")
+    user_question = st.text_area("Vnesite tekst", placeholder="Sem prilepite besedilo izvida ali vpisite zdravstveno težavo (npr. Kaj je angina pektoris?)...", height=160, label_visibility="collapsed")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# Popolna poravnava gumba na sredino prek kolon
 col_left, col_btn, col_right = st.columns([1, 2, 1])
 with col_btn:
-    analyze_button = st.button("Analyze & Explain")
+    analyze_button = st.button("Analiziraj in razloži")
 
-# Določitev ciljnega jezika za AI prompt
+# Določitev jezika za AI
 if "Slovenščina" in jezik_razlage:
     target_lang = "Slovenian"
 elif "Deutsch" in jezik_razlage:
@@ -96,50 +153,110 @@ elif "Deutsch" in jezik_razlage:
 else:
     target_lang = "English"
 
-# SISTEMSKI PROMPT Z REGIONALNO INTELIGENCO (Brez lojtric v rezultatu)
 SYSTEM_PROMPT = f"""
-You are an expert, compassionate global medical assistant. 
-Your task is to translate medical reports or answer health questions for a layperson. 
-Explain everything very simply, as if explaining to a 12-year-old. 
+Si vrhunski, sočuten medicinski asistent. 
+Tvoja naloga je, da pacientu (laiku) prevedeš medicinski izvid ali odgovoriš na zdravstveno vprašanje. Vse natančno RAZLOŽI V JEZIKU: {target_lang}.
 
-EXPLAIN EVERYTHING IN THE FOLLOWING LANGUAGE: {target_lang}.
-
-CRITICAL INSTRUCTIONS:
-- NEVER provide a diagnosis or prescribe treatment.
-- Do NOT use any introductory or concluding remarks. Start directly with the content.
-- CRITICAL: Never use hash signs (#) or bold headers that might mess up the rendering theme. Just use plain text for section titles.
-- Automatically adapt and explain any regional measurement units (e.g., converting or contextualizing US metric systems if compared to European standards).
-- Structure the response into distinct, clear paragraphs with these titles in uppercase:
-  SUMMARY
-  STABLE VALUES
-  IMPORTANT DEVIATIONS & TERMS
-  QUESTIONS FOR YOUR DOCTOR
-- Use standard hyphens (-) for bullet points.
+STRIKTNA NAVODILA ZA STRUKTURO:
+- NIKOLI ne postavljaj diagnoze in ne predpisuj zdravljenja.
+- Ne uporabljaj nobenih uvodnih fraz. Začni neposredno z vsebino.
+- PREPOVEDANO: Nikoli ne uporabljaj lojtric (#, ##, ###) na začetku vrstic za naslove.
+- Odgovor razdeli v naslednja poglavja z VELIKIMI ČRKAMI:
+  POGLAVJE: KRATEK POVZETEK
+  POGLAVJE: STABILNE VREDNOSTI
+  POGLAVJE: POMEMBNA ODSTOPANJA IN IZRAZI
+  POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
+- Za alineje uporabljaj standardni znak minus (-) na začetku vrstice.
 """
 
-# 3. AI LOGIKA IN STREMLIT REAL-TIME PRIKAZ
+# 4. NEPREBOJNI STRUKTURNI IZPIS Z ROČNO DODELJENIMI BARVAMI
 if analyze_button:
-    with st.spinner("⏳ MedicAI analyzing document..."):
+    with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
+            model = genai.GenerativeModel(
+                model_name="gemini-1.5-flash",
+                system_instruction=SYSTEM_PROMPT
+            )
             
             if "📸" in izbira_nacina and uploaded_file:
-                response = model.generate_content([{"mime_type": uploaded_file.type, "data": uploaded_file.read()}, "Analyze and interpret this document thoroughly."])
+                img_bytes = uploaded_file.read()
+                image_parts = [{"mime_type": uploaded_file.type, "data": img_bytes}]
+                response = model.generate_content([image_parts[0], "Natančno preuči in laično razloži ta dokument."])
             elif "💬" in izbira_nacina and user_question:
                 response = model.generate_content(user_question)
             else:
-                st.warning("Please provide an image or text input.")
+                st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
                 
-            st.markdown("<h2 style='font-weight:700; font-size: 1.5rem; margin-top:20px;'>📋 Report Analysis</h2>", unsafe_allow_html=True)
-            st.markdown("""
+            st.markdown(f"<h2 style='color: {text_main}; font-weight:700; font-size: 1.5rem; margin-top:20px;'>📋 Poročilo analize</h2>", unsafe_allow_html=True)
+            st.markdown(f"""
                 <div class='premium-disclaimer'>
-                    Disclaimer: This interpretation is for informational purposes only, generated by AI. Always consult your doctor for any medical decisions.
+                    <b>Opozorilo:</b> Razlaga je informativne narave, generirana z napredno umetno inteligenco MedicAI. Za kakršne koli zdravstvene odločitve se obvezno posvetujte s svojim zdravnikom.
                 </div>
             """, unsafe_allow_html=True)
             
-            # Čisti izpis - s pomočjo native spremenljivk bo barva 100% pravilna (črna v svetlem, bela v temnem)
-            st.markdown(response.text)
+            # Pretvorba v absolutno varen HTML izpis s prisilno barvo
+            cisti_tekst = response.text
+            html_rezultat = "<div style='margin-top: 15px; padding: 5px;'>"
+            
+            znotraj_seznama = False
+            
+            for line in cisti_tekst.split('\n'):
+                vrstica = line.replace('#', '').strip()
+                if not vrstica:
+                    if znotraj_seznama:
+                        html_rezultat += "</ul>"
+                        znotraj_seznama = False
+                    continue
+                
+                # Naslovi poglavij
+                if "POGLAVJE:" in vrstica:
+                    if znotraj_seznama:
+                        html_rezultat += "</ul>"
+                        znotraj_seznama = False
+                    naslov_tekst = vrstica.replace("POGLAVJE:", "").strip()
+                    html_rezultat += f"<p style='color: {txt_barva} !important; font-weight: 700 !important; font-size: 1.35rem !important; margin-top: 1.8rem !important; margin-bottom: 0.6rem !important; font-family: -apple-system, sans-serif;'>{naslov_tekst}</p>"
+                    
+                # Morebitni naslovi vprašanj (Kaj je angina pektoris?)
+                elif vrstica.endswith('?') and len(vrstica) < 80:
+                    if znotraj_seznama:
+                        html_rezultat += "</ul>"
+                        znotraj_seznama = False
+                    html_rezultat += f"<p style='color: {txt_barva} !important; font-weight: 700 !important; font-size: 1.25rem !important; margin-top: 1.5rem !important; margin-bottom: 0.5rem !important; font-family: -apple-system, sans-serif;'>{vrstica}</p>"
+                    
+                # Alineje
+                elif vrstica.startswith("-") or vrstica.startswith("*"):
+                    if not znotraj_seznama:
+                        html_rezultat += f"<ul style='padding-left: 20px !important; margin-top: 0 !important; margin-bottom: 1rem !important; color: {txt_barva} !important;'>"
+                        znotraj_seznama = True
+                    item_tekst = vrstica.lstrip("-* ").strip()
+                    
+                    if "**" in item_tekst:
+                        d = item_tekst.split("**")
+                        for i in range(1, len(d), 2):
+                            d[i] = f"<strong style='color: {txt_barva} !important; font-weight: 700;'>{d[i]}</strong>"
+                        item_tekst = "".join(d)
+                        
+                    html_rezultat += f"<li style='color: {txt_barva} !important; font-size: 1.05rem !important; margin-bottom: 0.5rem !important; font-family: -apple-system, sans-serif;'>{item_tekst}</li>"
+                    
+                # Odstavki
+                else:
+                    if znotraj_seznama:
+                        html_rezultat += "</ul>"
+                        znotraj_seznama = False
+                    p_tekst = vrstica
+                    if "**" in p_tekst:
+                        d = p_tekst.split("**")
+                        for i in range(1, len(d), 2):
+                            d[i] = f"<strong style='color: {txt_barva} !important; font-weight: 700;'>{d[i]}</strong>"
+                        p_tekst = "".join(d)
+                    html_rezultat += f"<p style='color: {txt_barva} !important; font-size: 1.05rem !important; line-height: 1.7 !important; margin-bottom: 1rem !important; font-family: -apple-system, sans-serif;'>{p_tekst}</p>"
+                    
+            if znotraj_seznama:
+                html_rezultat += "</ul>"
+                
+            html_rezultat += "</div>"
+            st.markdown(html_rezultat, unsafe_allow_html=True)
             
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"Prišlo je do napake: {e}")
