@@ -150,36 +150,42 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. NEPREBOJNI V1 HTTP STRUKTURNI KLIC
+# 4. STABILNI V1 HTTP KLIC S SYSTEM ROLE LOGIKO
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
             url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
-            contents_payload = []
+            # POPRAVEK STOLETJA: Navodila pošljemo kot "system" vlogo direktno znotraj seznama contents
+            contents_payload = [
+                {
+                    "role": "user",
+                    "parts": [{"text": f"Sistemska navodila: {SYSTEM_PROMPT}"}]
+                }
+            ]
             
             if "📸" in izbira_nacina and uploaded_file:
                 img_bytes = uploaded_file.read()
                 base64_image = base64.b64encode(img_bytes).decode('utf-8')
-                contents_payload = [
-                    {
-                        "parts": [
-                            {"inline_data": {"mime_type": uploaded_file.type, "data": base64_image}},
-                            {"text": "Natančno preuči in laično razloži ta dokument."}
-                        ]
-                    }
-                ]
+                contents_payload.append({
+                    "role": "user",
+                    "parts": [
+                        {"inline_data": {"mime_type": uploaded_file.type, "data": base64_image}},
+                        {"text": "Natančno preuči in laično razloži ta dokument."}
+                    ]
+                })
             elif "💬" in izbira_nacina and user_question:
-                contents_payload = [{"parts": [{"text": user_question}]}]
+                contents_payload.append({
+                    "role": "user",
+                    "parts": [{"text": user_question}]
+                })
             else:
                 st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
                 
             payload = {
                 "contents": contents_payload,
-                # POPRAVEK: Zamenjano v uradno ime polja s podčrtajem (system_instruction)
-                "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
                 "generationConfig": {"temperature": 0.2}
             }
             
