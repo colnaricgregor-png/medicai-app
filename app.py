@@ -55,54 +55,36 @@ else:
     input_text = "#0f172a"
     btn_bg = "#111111"
     btn_text = "#ffffff"
-    txt_barva = "#000000"  # Absolutna črna za svetel način
+    txt_barva = "#000000"
 
 # 2. PREMIUM LUKSUZNI CSS
 st.markdown(f"""
     <style>
-    .stApp {{ 
-        background-color: {bg_app} !important; 
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-    }}
+    .stApp {{ background-color: {bg_app} !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
     .block-container {{ max-width: 600px !important; padding-top: 2rem !important; }}
     
     h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.4rem; letter-spacing: -0.03em; margin-bottom: 0.5rem; }}
     .subtitle {{ text-align: center; color: {text_muted} !important; font-size: 1.1rem; margin-bottom: 2.5rem; font-weight: 400; }}
     
     div.stTextArea textarea {{
-        color: {input_text} !important;
-        background-color: {bg_card} !important;
-        border: 1px solid {border_color} !important;
-        border-radius: 14px !important;
-        padding: 15px !important;
+        color: {input_text} !important; background-color: {bg_card} !important; border: 1px solid {border_color} !important;
+        border-radius: 14px !important; padding: 15px !important;
     }}
     
     .stButton>button {{
-        background-color: {btn_bg} !important; 
-        color: {btn_text} !important; 
-        width: 100% !important; 
-        border-radius: 14px !important; 
-        padding: 14px 24px !important; 
-        font-weight: 600 !important; 
-        font-size: 1.05rem !important;
-        border: none !important; 
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.25s ease !important;
+        background-color: {btn_bg} !important; color: {btn_text} !important; width: 100% !important; border-radius: 14px !important; 
+        padding: 14px 24px !important; font-weight: 600 !important; font-size: 1.05rem !important; border: none !important; 
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important; transition: all 0.25s ease !important;
     }}
-    .stButton>button:hover {{
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
-    }}
+    .stButton>button:hover {{ transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important; }}
     .stButton>button p {{ color: {btn_text} !important; font-weight: 600 !important; margin: 0 !important; }}
     
     .premium-disclaimer {{
-        background-color: {bg_card}; padding: 16px 20px; border-radius: 14px; 
-        border: 1px solid {border_color}; color: {text_muted}; font-size: 0.85rem; margin-bottom: 25px; line-height: 1.5;
+        background-color: {bg_card}; padding: 16px 20px; border-radius: 14px; border: 1px solid {border_color}; 
+        color: {text_muted}; font-size: 0.85rem; margin-bottom: 25px; line-height: 1.5;
     }}
     
-    [data-testid="stSidebar"] {{ display: none !important; }}
-    [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
-    [data-testid="stHeader"] {{ display: none !important; }}
+    [data-testid="stSidebar"], [data-testid="stSidebarCollapseButton"], [data-testid="stHeader"] {{ display: none !important; }}
     footer {{ visibility: hidden; }}
     </style>
 """, unsafe_allow_html=True)
@@ -150,15 +132,14 @@ POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
 Za alineje uporabljaj standardni znak minus (-).
 """
 
-# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC (v1beta z bypass logiko)
+# 4. NEPREBOJNI ZDRUŽENI HTTP KLIC S PREVERJENIM MODELOM
 if analyze_button:
     with st.spinner("⏳ MedicAI natančno preučuje dokument..."):
         try:
-            # Uporabimo v1beta, ki zanesljivo ima 1.5-flash model
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+            # ZMAGA: Tukaj uporabljamo 2.5-flash, ki preverjeno deluje!
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
             headers = {"Content-Type": "application/json"}
             
-            # ZDRUŽITEV NAVODIL: Sistemski prompt preprosto prilepimo na začetek vprašanja
             full_prompt = f"NAVODILA ZA UMETNO INTELIGENCO:\n{SYSTEM_PROMPT}\n\nVPRAŠANJE/ZAHTEVA UPORABNIKA:\n"
             
             contents_payload = []
@@ -182,7 +163,6 @@ if analyze_button:
                 st.warning("Prosim, vnesite tekst ali naložite sliko.")
                 st.stop()
                 
-            # Payload zdaj nima več kompliciranega systemInstruction polja, samo surovi tekst!
             payload = {
                 "contents": contents_payload,
                 "generationConfig": {"temperature": 0.2}
