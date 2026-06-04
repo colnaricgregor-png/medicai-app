@@ -46,8 +46,8 @@ st.markdown(f"""
         to {{ opacity: 1; transform: translateY(0); }}
     }}
     .stApp {{ background-color: {bg_app} !important; font-family: -apple-system, sans-serif; animation: fadeIn 0.8s ease-out; }}
-    .block-container {{ max-width: 650px !important; padding-top: 3rem !important; padding-bottom: 100px !important; }}
-    h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.6rem; margin-bottom: 0.2rem; }}
+    .block-container {{ max-width: 650px !important; padding-top: 2rem !important; padding-bottom: 100px !important; }}
+    h1 {{ color: {text_main} !important; text-align: center; font-weight: 800; font-size: 2.6rem; margin-bottom: 0.2rem; margin-top: -20px; }}
     .subtitle {{ text-align: center; color: {text_muted} !important; font-size: 1.1rem; margin-bottom: 3rem; }}
     
     /* Input polja */
@@ -89,10 +89,25 @@ st.markdown(f"""
         border-radius: 24px !important; max-width: 650px !important; margin: 0 auto !important;
     }}
     
+    /* Odstranitev default paddinga za checkbox, da lepše stoji */
+    div[data-testid="stCheckbox"] {{ margin-bottom: 15px; color: {text_muted}; }}
+    
     [data-testid="stSidebar"], [data-testid="stHeader"] {{ display: none !important; }}
     footer {{ visibility: hidden; }}
     </style>
 """, unsafe_allow_html=True)
+
+# --- GUMB ZA DIREKTNI NAKUP (Zgornji desni kot) ---
+col_space, col_upgrade = st.columns([3.5, 1.5])
+with col_upgrade:
+    if not st.session_state.is_premium:
+        if st.button("⭐ Premium", key="top_premium", type="primary"):
+            st.session_state.is_premium = True
+            st.session_state.izvid_odklenjen = True
+            st.rerun()
+    else:
+        # Če je že plačal, mu pokažemo zlato VIP značko
+        st.markdown("<div style='text-align: right; color: #fbbf24; font-weight: 800; font-size: 1.1rem; margin-top: 10px;'>⭐ Premium</div>", unsafe_allow_html=True)
 
 # --- 3. HTML FORMATER ---
 def formatiraj_izvid_v_html(tekst_odgovora, is_unlocked):
@@ -142,7 +157,7 @@ def formatiraj_izvid_v_html(tekst_odgovora, is_unlocked):
     
     return html_rezultat, potreben_paywall
 
-# --- 4. ZDRUŽEN VMESNIK (SKRIVANJE PO ANALIZI) ---
+# --- 4. ZDRUŽEN VMESNIK ---
 st.markdown("<h1>MedicAI</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Vaš osebni zdravstveni tolmač.<br>Hitro, preprosto in v laičnem jeziku.</p>", unsafe_allow_html=True)
 
@@ -150,18 +165,21 @@ uploaded_file = None
 user_question = ""
 analyze_button = False
 
-# Prikažemo vnosna polja SAMO, če uporabnik še ni začel z analizo (zgodovina je prazna)
+# Prikažemo vnosna polja SAMO, če uporabnik še ni začel z analizo
 if len(st.session_state.api_history) == 0:
     with st.container():
         uploaded_file = st.file_uploader("📁 Naložite izvid (Slika s kamere ali PDF)", type=["png", "jpg", "jpeg", "pdf"])
         user_question = st.text_area("💬 Ali pa vpišite svoje vprašanje:", placeholder="Npr. Kaj pomeni visok holesterol? ali sem prilepite besedilo izvida...", height=110)
 
+    # Pravna varnost: Kljukica, ki odklene gumb
+    pogoji_potrjeni = st.checkbox("Strinjam se s Pogoji uporabe in razumem, da orodje ne nadomešča nasveta zdravnika.")
+    
     st.markdown("<br>", unsafe_allow_html=True)
     col_left, col_btn, col_right = st.columns([1, 1.5, 1])
     with col_btn:
-        analyze_button = st.button("Analiziraj podatke", use_container_width=True)
+        # Gumb je zaklenjen (disabled), dokler uporabnik ne obkljuka pogojev
+        analyze_button = st.button("Analiziraj podatke", use_container_width=True, disabled=not pogoji_potrjeni)
 else:
-    # Če je analiza že narejena, prvotni blok skrijemo in ponudimo gumb za "Začni znova"
     col_left, col_btn, col_right = st.columns([1, 1.5, 1])
     with col_btn:
         if st.button("🔄 Začni znova / Naloži nov izvid", use_container_width=True):
@@ -236,7 +254,7 @@ if analyze_button:
                 ai_odgovor = response_json['candidates'][0]['content']['parts'][0]['text']
                 st.session_state.api_history.append({"role": "model", "parts": [{"text": ai_odgovor}]})
                 st.session_state.ui_history.append({"role": "assistant", "content": ai_odgovor, "is_main_report": True})
-                st.rerun() # Prisilno osvežimo stran, da skrijemo vnosni obrazec!
+                st.rerun() 
         except Exception as e:
             st.error(f"Napaka: {e}")
 
@@ -278,7 +296,7 @@ if prikazan_paywall:
             st.session_state.izvid_odklenjen = True
             st.rerun() 
     with pc2:
-        if st.button("⭐ Premium + AI Chat (4,90 €/mes)", key="btn_premium", type="primary"):
+        if st.button("⭐ Premium + AI Chat (4,90 €/mes)", key="btn_premium_card", type="primary"):
             st.session_state.is_premium = True
             st.session_state.izvid_odklenjen = True
             st.rerun() 
@@ -319,3 +337,19 @@ if len(st.session_state.api_history) > 0 and not prikazan_paywall:
                             st.rerun() 
                     else:
                         st.error("Napaka pri klepetu.")
+
+# --- 7. PRAVNO OBVESTILO IN ZASEBNOST (FOOTER) ---
+st.markdown("<br><br><br>", unsafe_allow_html=True)
+with st.expander("⚖️ Pravno obvestilo in Politika zasebnosti (GDPR)"):
+    st.markdown("""
+    **1. OMEJITEV ODGOVORNOSTI (MEDICINSKI DISCLAIMER)**
+    MedicAI je informativno in izobraževalno orodje, ki uporablja umetno inteligenco za poenostavitev medicinske terminologije. **MedicAI NI medicinski pripomoček** in ne postavlja diagnoz ter ne predpisuje zdravljenja. Za vse odločitve o vašem zdravju se obvezno posvetujte s svojim zdravnikom. Uporaba aplikacije je na lastno odgovornost.
+
+    **2. VARSTVO OSEBNIH PODATKOV (GDPR) IN ZASEBNOST**
+    - **Ne shranjujemo izvidov:** Ko naložite dokument, se ta obdela v realnem času izključno v delovnem spominu strežnika.
+    - **Brez baze podatkov:** Vaši zdravstveni podatki, izrazi in slike se NIKOLI ne shranjujejo. Ob osvežitvi ali zaprtju strani se vsi vneseni podatki in zgodovina klepeta trajno izbrišejo.
+    - **Varna obdelava:** Za razumevanje besedila uporabljamo varen in šifriran vmesnik (API), ki vaših podatkov ne uporablja za učenje svojih javnih modelov.
+    
+    **3. TRANSAKCIJE IN PLAČILA**
+    Vsa plačila se izvajajo preko mednarodno certificiranega partnerja (Stripe). Naši strežniki nikoli ne pridejo v stik z vašimi finančnimi podatki (številke kreditnih kartic), niti jih ne shranjujejo.
+    """)
