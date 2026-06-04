@@ -107,7 +107,6 @@ def formatiraj_izvid_v_html(tekst_odgovora, is_unlocked):
             if znotraj_seznama: html_rezultat += "</ul>"; znotraj_seznama = False
             continue
         
-        # Blur logika
         if "[NASLOV] POMEMBNA ODSTOPANJA" in vrstica.upper() and not is_unlocked:
             if znotraj_seznama: html_rezultat += "</ul>"; znotraj_seznama = False
             html_rezultat += "<div class='blurred-content'>"
@@ -143,23 +142,34 @@ def formatiraj_izvid_v_html(tekst_odgovora, is_unlocked):
     
     return html_rezultat, potreben_paywall
 
-# --- 4. ZDRUŽEN VMESNIK ---
+# --- 4. ZDRUŽEN VMESNIK (SKRIVANJE PO ANALIZI) ---
 st.markdown("<h1>MedicAI</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Vaš osebni zdravstveni tolmač.<br>Hitro, preprosto in v laičnem jeziku.</p>", unsafe_allow_html=True)
 
-# Centralni kontejner za oba vnosa (brez preklapljanja!)
-with st.container():
-    uploaded_file = st.file_uploader("📁 Naložite izvid (Slika s kamere ali PDF)", type=["png", "jpg", "jpeg", "pdf"])
-    user_question = st.text_area("💬 Ali pa vpišite svoje vprašanje:", placeholder="Npr. Kaj pomeni visok holesterol? ali sem prilepite besedilo izvida...", height=110)
+uploaded_file = None
+user_question = ""
+analyze_button = False
 
-st.markdown("<br>", unsafe_allow_html=True)
+# Prikažemo vnosna polja SAMO, če uporabnik še ni začel z analizo (zgodovina je prazna)
+if len(st.session_state.api_history) == 0:
+    with st.container():
+        uploaded_file = st.file_uploader("📁 Naložite izvid (Slika s kamere ali PDF)", type=["png", "jpg", "jpeg", "pdf"])
+        user_question = st.text_area("💬 Ali pa vpišite svoje vprašanje:", placeholder="Npr. Kaj pomeni visok holesterol? ali sem prilepite besedilo izvida...", height=110)
 
-# Popolnoma centriran gumb
-col_left, col_btn, col_right = st.columns([1, 1.5, 1])
-with col_btn:
-    analyze_button = st.button("Analiziraj podatke", use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_left, col_btn, col_right = st.columns([1, 1.5, 1])
+    with col_btn:
+        analyze_button = st.button("Analiziraj podatke", use_container_width=True)
+else:
+    # Če je analiza že narejena, prvotni blok skrijemo in ponudimo gumb za "Začni znova"
+    col_left, col_btn, col_right = st.columns([1, 1.5, 1])
+    with col_btn:
+        if st.button("🔄 Začni znova / Naloži nov izvid", use_container_width=True):
+            st.session_state.api_history = []
+            st.session_state.ui_history = []
+            st.session_state.izvid_odklenjen = False
+            st.rerun()
 
-# PAMETNI PROMPT (Loči med analizami izvidov in navadnim klepetom)
 SYSTEM_PROMPT = """
 Si vrhunski, sočuten medicinski asistent. 
 Če uporabnik naloži sliko, ki očitno NI povezana z medicino, odgovori SAMO IN IZKLJUČNO: "NAPAKA: Datoteka ni medicinske narave. Prosimo, naložite veljaven zdravstveni izvid."
@@ -193,7 +203,6 @@ if analyze_button:
             full_prompt = f"NAVODILA:\n{SYSTEM_PROMPT}\n\nZAHTEVA UPORABNIKA:\n"
             parts_array = []
             
-            # Če imamo oboje, pošljemo oboje
             if uploaded_file and user_question:
                 if uploaded_file.type == "application/pdf": file_bytes = uploaded_file.read(); koncni_mime = "application/pdf"
                 else:
@@ -204,7 +213,6 @@ if analyze_button:
                 full_prompt += f"Preuči priložen dokument. Uporabnik je zraven dodal še tole vprašanje/opombo: {user_question}"
                 parts_array = [{"inlineData": {"mimeType": koncni_mime, "data": base64_file}}, {"text": full_prompt}]
                 
-            # Če imamo samo datoteko
             elif uploaded_file:
                 if uploaded_file.type == "application/pdf": file_bytes = uploaded_file.read(); koncni_mime = "application/pdf"
                 else:
@@ -215,7 +223,6 @@ if analyze_button:
                 full_prompt += "Natančno preuči priložen dokument (ali sliko) in ga laično razloži v mojem jeziku."
                 parts_array = [{"inlineData": {"mimeType": koncni_mime, "data": base64_file}}, {"text": full_prompt}]
                 
-            # Če imamo samo tekstovno vprašanje
             elif user_question:
                 full_prompt += user_question
                 parts_array = [{"text": full_prompt}]
@@ -228,9 +235,8 @@ if analyze_button:
             if 'error' not in response_json:
                 ai_odgovor = response_json['candidates'][0]['content']['parts'][0]['text']
                 st.session_state.api_history.append({"role": "model", "parts": [{"text": ai_odgovor}]})
-                
-                # Dodamo v UI spomin. is_main_report označuje začetni odgovor
                 st.session_state.ui_history.append({"role": "assistant", "content": ai_odgovor, "is_main_report": True})
+                st.rerun() # Prisilno osvežimo stran, da skrijemo vnosni obrazec!
         except Exception as e:
             st.error(f"Napaka: {e}")
 
@@ -244,7 +250,6 @@ for msg in st.session_state.ui_history:
             if "NAPAKA: Datoteka ni medicinske narave" in msg["content"]:
                 st.warning("Datoteka ni medicinske narave. Prosimo, naložite veljaven zdravstveni izvid.")
             else:
-                # Opozorila prikazujemo samo, če gre dejansko za uradno analizo (če vsebuje [NASLOV])
                 if "[NASLOV]" in msg["content"]:
                     st.markdown(f"<h2 style='color: {text_main}; font-weight:800; font-size: 1.6rem; margin-top:30px;'>📋 Poročilo analize</h2>", unsafe_allow_html=True)
                     st.markdown("<div class='premium-disclaimer'><b>Opozorilo:</b> Razlaga je informativne narave. Obvezno se posvetujte z zdravnikom.</div>", unsafe_allow_html=True)
