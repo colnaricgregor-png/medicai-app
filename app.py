@@ -130,16 +130,18 @@ def formatiraj_izvid_v_html(tekst_odgovora, is_unlocked):
             if znotraj_seznama: html_rezultat += "</ul>"; znotraj_seznama = False
             continue
         
-        # AKTIVACIJA BLURA KO PRIDEMO DO ODSTOPANJ
-        if "POGLAVJE: POMEMBNA ODSTOPANJA" in vrstica.upper() and not is_unlocked:
+        # AKTIVACIJA BLURA KO PRIDEMO DO ODSTOPANJ (z novim skritim tagom [NASLOV])
+        if "[NASLOV] POMEMBNA ODSTOPANJA" in vrstica.upper() and not is_unlocked:
             if znotraj_seznama: html_rezultat += "</ul>"; znotraj_seznama = False
             html_rezultat += "<div class='blurred-content'>"
             znotraj_blura = True
             potreben_paywall = True
             
-        if "POGLAVJE:" in vrstica:
+        # Zaznava skritega taga za naslove
+        if "[NASLOV]" in vrstica.upper():
             if znotraj_seznama: html_rezultat += "</ul>"; znotraj_seznama = False
-            naslov_tekst = vrstica.replace("POGLAVJE:", "").strip()
+            # Odstranimo tag, ostane samo cisto besedilo
+            naslov_tekst = vrstica.upper().replace("[NASLOV]", "").strip()
             html_rezultat += f"<p style='color: {txt_barva}; font-weight: 700; font-size: 1.35rem; margin-top: 2rem; margin-bottom: 0.8rem;'>{naslov_tekst}</p>"
         elif vrstica.startswith("-") or vrstica.startswith("*"):
             if not znotraj_seznama:
@@ -185,26 +187,27 @@ col_left, col_btn, col_right = st.columns([1, 2, 1])
 with col_btn:
     analyze_button = st.button("Analiziraj in razloži")
 
+# POSODOBLJEN PROMPT ZA POPOLNOMA ČISTE NASLOVE
 SYSTEM_PROMPT = """
 Si vrhunski, sočuten medicinski asistent. 
 Če uporabnik naloži sliko, ki očitno NI povezana z medicino, odgovori SAMO IN IZKLJUČNO: "NAPAKA: Datoteka ni medicinske narave. Prosimo, naložite veljaven zdravstveni izvid."
 
 STRIKTNA NAVODILA ZA STRUKTURO:
 - NIKOLI ne postavljaj diagnoze in ne predpisuj zdravljenja.
-- Odgovor razdeli v naslednja poglavja z VELIKIMI ČRKAMI:
-  POGLAVJE: KRATEK POVZETEK
-  POGLAVJE: STABILNE VREDNOSTI
-  POGLAVJE: POMEMBNA ODSTOPANJA IN IZRAZI
-  POGLAVJE: VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
+- Odgovor razdeli v naslednja poglavja, pri čemer na začetek vsakega naslova obvezno napiši točno oznako [NASLOV]:
+  [NASLOV] KRATEK POVZETEK
+  [NASLOV] STABILNE VREDNOSTI
+  [NASLOV] POMEMBNA ODSTOPANJA IN IZRAZI
+  [NASLOV] VPRAŠANJA ZA VAŠEGA ZDRAVNIKA
+- Ne uporabljaj nobenih drugih besed (npr. 'Poglavje:') pred temi naslovi.
 - Za alineje uporabljaj standardni znak minus (-).
 """
 
 # KLIC ZA PRVO ANALIZO
 if analyze_button:
-    # Ob novi analizi resetiramo spomin, ampak ohranimo status naročnine
     st.session_state.api_history = []
     st.session_state.ui_history = []
-    st.session_state.izvid_odklenjen = False # Zaklenemo nov izvid (razen če je premium)
+    st.session_state.izvid_odklenjen = False 
     
     with st.spinner("⏳ MedicAI preučuje vaše podatke..."):
         try:
@@ -259,12 +262,10 @@ for msg in st.session_state.ui_history:
                 st.markdown(f"<h2 style='color: {text_main}; font-weight:800; font-size: 1.6rem; margin-top:30px;'>📋 Poročilo analize</h2>", unsafe_allow_html=True)
                 st.markdown("<div class='premium-disclaimer'><b>Opozorilo:</b> Razlaga je informativne narave. Obvezno se posvetujte z zdravnikom.</div>", unsafe_allow_html=True)
                 
-                # Formatiranje in preverjanje pravic
                 ima_pravice = st.session_state.is_premium or st.session_state.izvid_odklenjen
                 oblikovan_html, rabi_paywall = formatiraj_izvid_v_html(msg["content"], is_unlocked=ima_pravice)
                 st.markdown(oblikovan_html, unsafe_allow_html=True)
                 
-                # ČE UPORABNIK NIMA PRAVIC, SE PRIKAŽE GUMB ZA PLAČILO
                 if rabi_paywall and not ima_pravice:
                     prikazan_paywall = True
         else:
@@ -281,24 +282,20 @@ if prikazan_paywall:
     
     pc1, pc2 = st.columns(2)
     with pc1:
-        # Gumb v stilu "spletne strani", subtilen, a jasen
         if st.button("Odkleni to poročilo (1,90 €)", key="btn_onetime", type="secondary"):
             st.session_state.izvid_odklenjen = True
-            st.rerun() # Osveži stran, da odstrani zameglitev!
+            st.rerun() 
     with pc2:
-        # Premium gumb
         if st.button("⭐ Premium + AI Chat (4,90 €/mes)", key="btn_premium", type="primary"):
             st.session_state.is_premium = True
             st.session_state.izvid_odklenjen = True
-            st.rerun() # Osveži stran, da odstrani zameglitev!
+            st.rerun() 
 
 # --- 6. FREEMIUM KLEPET (LIMITIRANO NA 3 SPOROČILA) ---
 if len(st.session_state.api_history) > 0 and not prikazan_paywall:
     
-    # Preverimo limit za free chat
     preostala_sporocila = 3 - st.session_state.free_messages_used
     
-    # Če ni Premium in je porabil sporočila, mu blokiramo polje
     if not st.session_state.is_premium and preostala_sporocila <= 0:
         st.info("⚠️ **Vaš brezplačni paket je porabljen.** Za neomejen klepet z AI zdravnikom odklenite Premium.")
         if st.button("⭐ Odkleni Premium (4,90 €/mes)", key="btn_chat_premium", type="primary"):
@@ -325,9 +322,8 @@ if len(st.session_state.api_history) > 0 and not prikazan_paywall:
                         st.session_state.api_history.append({"role": "model", "parts": [{"text": ai_odgovor}]})
                         st.session_state.ui_history.append({"role": "assistant", "content": ai_odgovor, "is_main_report": False})
                         
-                        # Zapišemo uporabo
                         if not st.session_state.is_premium:
                             st.session_state.free_messages_used += 1
-                            st.rerun() # Osveži števec na gumbu
+                            st.rerun() 
                     else:
                         st.error("Napaka pri klepetu.")
