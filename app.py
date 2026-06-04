@@ -217,11 +217,33 @@ if analyze_button:
             # Sestavljanje zahteve (payload) za API
             parts_array = []
             if "📄" in izbira_nacina and uploaded_file:
-                file_bytes = uploaded_file.read()
+                # LOČIMO PDF IN SLIKE (Za slike uporabimo "čistilca")
+                if uploaded_file.type == "application/pdf":
+                    file_bytes = uploaded_file.read()
+                    koncni_mime = "application/pdf"
+                else:
+                    # SLIKA: Odpremo, očistimo in standardiziramo v čist JPEG
+                    slika = Image.open(uploaded_file)
+                    
+                    # Pretvorimo v pravilen barvni model (odstrani prosojnost, alfa kanale ipd.)
+                    if slika.mode != 'RGB':
+                        slika = slika.convert('RGB')
+                    
+                    # Pomanjšamo ogromne slike s telefona (API bo hitrejši in brez napak)
+                    slika.thumbnail((2000, 2000))
+                    
+                    # Shranimo v začasni spomin kot čist JPEG
+                    b_io = io.BytesIO()
+                    slika.save(b_io, format='JPEG', quality=85)
+                    file_bytes = b_io.getvalue()
+                    koncni_mime = "image/jpeg"
+
+                # Pretvorba v Base64 za Google
                 base64_file = base64.b64encode(file_bytes).decode('utf-8')
                 full_prompt += "Natančno preuči priložen dokument (ali sliko) in ga laično razloži v mojem jeziku."
+                
                 parts_array = [
-                    {"inlineData": {"mimeType": uploaded_file.type, "data": base64_file}},
+                    {"inlineData": {"mimeType": koncni_mime, "data": base64_file}},
                     {"text": full_prompt}
                 ]
             elif "💬" in izbira_nacina and user_question:
