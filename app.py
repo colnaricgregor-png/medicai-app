@@ -10,6 +10,13 @@ st.set_page_config(
     layout="centered"
 )
 
+# --- 0. VARNOSTNA FUNKCIJA ZA OSVEŽEVANJE ---
+def varen_rerun():
+    try:
+        st.rerun()
+    except AttributeError:
+        st.experimental_rerun()
+
 # --- 1. INICIALIZACIJA POSLOVNE LOGIKE ---
 if "pozdrav_prikazan" not in st.session_state:
     st.toast("👋 **Dobrodošli v MedicAI!**\n\nNaložite izvid ali vpišite vprašanje.", icon="🩺")
@@ -20,6 +27,7 @@ if "ui_history" not in st.session_state: st.session_state.ui_history = []
 if "is_premium" not in st.session_state: st.session_state.is_premium = False
 if "izvid_odklenjen" not in st.session_state: st.session_state.izvid_odklenjen = False
 if "free_messages_used" not in st.session_state: st.session_state.free_messages_used = 0
+if "pogoji_sprejeti" not in st.session_state: st.session_state.pogoji_sprejeti = False
 
 if "GEMINI_API_KEY" in st.secrets:
     API_KEY = st.secrets["GEMINI_API_KEY"]
@@ -89,7 +97,6 @@ st.markdown(f"""
         border-radius: 24px !important; max-width: 650px !important; margin: 0 auto !important;
     }}
     
-    /* Odstranitev default paddinga za checkbox, da lepše stoji */
     div[data-testid="stCheckbox"] {{ margin-bottom: 15px; color: {text_muted}; }}
     
     [data-testid="stSidebar"], [data-testid="stHeader"] {{ display: none !important; }}
@@ -104,9 +111,8 @@ with col_upgrade:
         if st.button("⭐ Premium", key="top_premium", type="primary"):
             st.session_state.is_premium = True
             st.session_state.izvid_odklenjen = True
-            st.rerun()
+            varen_rerun()
     else:
-        # Če je že plačal, mu pokažemo zlato VIP značko
         st.markdown("<div style='text-align: right; color: #fbbf24; font-weight: 800; font-size: 1.1rem; margin-top: 10px;'>⭐ Premium</div>", unsafe_allow_html=True)
 
 # --- 3. HTML FORMATER ---
@@ -157,7 +163,7 @@ def formatiraj_izvid_v_html(tekst_odgovora, is_unlocked):
     
     return html_rezultat, potreben_paywall
 
-# --- 4. ZDRUŽEN VMESNIK ---
+# --- 4. ZDRUŽEN VMESNIK (MAGIČNI IZBRIS) ---
 st.markdown("<h1>MedicAI</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Vaš osebni zdravstveni tolmač.<br>Hitro, preprosto in v laičnem jeziku.</p>", unsafe_allow_html=True)
 
@@ -165,20 +171,28 @@ uploaded_file = None
 user_question = ""
 analyze_button = False
 
+# Ustvarimo "prazen kontejner", ki ga lahko kasneje v sekundi izbrišemo
+glavni_vnos_kontejner = st.empty()
+
 # Prikažemo vnosna polja SAMO, če uporabnik še ni začel z analizo
 if len(st.session_state.api_history) == 0:
-    with st.container():
+    with glavni_vnos_kontejner.container():
         uploaded_file = st.file_uploader("📁 Naložite izvid (Slika s kamere ali PDF)", type=["png", "jpg", "jpeg", "pdf"])
         user_question = st.text_area("💬 Ali pa vpišite svoje vprašanje:", placeholder="Npr. Kaj pomeni visok holesterol? ali sem prilepite besedilo izvida...", height=110)
 
-    # Pravna varnost: Kljukica, ki odklene gumb
-    pogoji_potrjeni = st.checkbox("Strinjam se s Pogoji uporabe in razumem, da orodje ne nadomešča nasveta zdravnika.")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_left, col_btn, col_right = st.columns([1, 1.5, 1])
-    with col_btn:
-        # Gumb je zaklenjen (disabled), dokler uporabnik ne obkljuka pogojev
-        analyze_button = st.button("Analiziraj podatke", use_container_width=True, disabled=not pogoji_potrjeni)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Logika izginjajoče kljukice
+        if not st.session_state.pogoji_sprejeti:
+            pogoji = st.checkbox("Strinjam se s Pogoji uporabe in razumem, da orodje ne nadomešča nasveta zdravnika.")
+            if pogoji:
+                st.session_state.pogoji_sprejeti = True
+                varen_rerun()
+        else:
+            st.markdown("<div style='text-align:center; color:#10b981; font-weight:bold; margin-bottom:15px;'>✅ Pogoji sprejeti. Pripravljeno na analizo.</div>", unsafe_allow_html=True)
+            col_left, col_btn, col_right = st.columns([1, 1.5, 1])
+            with col_btn:
+                analyze_button = st.button("Analiziraj podatke", use_container_width=True)
 else:
     col_left, col_btn, col_right = st.columns([1, 1.5, 1])
     with col_btn:
@@ -186,7 +200,8 @@ else:
             st.session_state.api_history = []
             st.session_state.ui_history = []
             st.session_state.izvid_odklenjen = False
-            st.rerun()
+            st.session_state.pogoji_sprejeti = False
+            varen_rerun()
 
 SYSTEM_PROMPT = """
 Si vrhunski, sočuten medicinski asistent. 
@@ -210,7 +225,11 @@ Splošna pravila: NIKOLI ne postavljaj diagnoze. Za alineje uporabljaj znak minu
 if analyze_button:
     if not uploaded_file and not user_question.strip():
         st.warning("Prosim, naložite dokument ali vpišite vprašanje.")
+        st.session_state.pogoji_sprejeti = False
         st.stop()
+        
+    # TUKAJ SE ZGODI MAGIJA: V sekundi, ko so podatki potrjeni, vizualno izbrišemo zgornji blok
+    glavni_vnos_kontejner.empty()
         
     st.session_state.api_history = []
     st.session_state.ui_history = []
@@ -254,7 +273,7 @@ if analyze_button:
                 ai_odgovor = response_json['candidates'][0]['content']['parts'][0]['text']
                 st.session_state.api_history.append({"role": "model", "parts": [{"text": ai_odgovor}]})
                 st.session_state.ui_history.append({"role": "assistant", "content": ai_odgovor, "is_main_report": True})
-                st.rerun() 
+                varen_rerun() 
         except Exception as e:
             st.error(f"Napaka: {e}")
 
@@ -294,12 +313,12 @@ if prikazan_paywall:
     with pc1:
         if st.button("Odkleni to poročilo (1,90 €)", key="btn_onetime", type="secondary"):
             st.session_state.izvid_odklenjen = True
-            st.rerun() 
+            varen_rerun() 
     with pc2:
         if st.button("⭐ Premium + AI Chat (4,90 €/mes)", key="btn_premium_card", type="primary"):
             st.session_state.is_premium = True
             st.session_state.izvid_odklenjen = True
-            st.rerun() 
+            varen_rerun() 
 
 # --- 6. FREEMIUM KLEPET (LIMITIRANO NA 3 SPOROČILA) ---
 if len(st.session_state.api_history) > 0 and not prikazan_paywall:
@@ -310,7 +329,7 @@ if len(st.session_state.api_history) > 0 and not prikazan_paywall:
         st.info("⚠️ **Vaš brezplačni paket je porabljen.** Za neomejen klepet z AI zdravnikom odklenite Premium.")
         if st.button("⭐ Odkleni Premium (4,90 €/mes)", key="btn_chat_premium", type="primary"):
             st.session_state.is_premium = True
-            st.rerun()
+            varen_rerun()
             
     else:
         placeholder = "Vprašajte o izvidu..." if st.session_state.is_premium else f"Vnesite vprašanje... (Še {preostala_sporocila} brezplačna)"
@@ -334,7 +353,7 @@ if len(st.session_state.api_history) > 0 and not prikazan_paywall:
                         
                         if not st.session_state.is_premium:
                             st.session_state.free_messages_used += 1
-                            st.rerun() 
+                            varen_rerun() 
                     else:
                         st.error("Napaka pri klepetu.")
 
